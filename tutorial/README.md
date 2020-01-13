@@ -1,4 +1,6 @@
 # UTS-Person-reID-Practical
+[![Readme-EN](https://img.shields.io/badge/README-English-green.svg)](https://github.com/layumi/Person_reID_baseline_pytorch/tree/master/tutorial)    [![Readme-CN](https://img.shields.io/badge/README-中文-green.svg)](https://zhuanlan.zhihu.com/p/50387521) 
+
 By [Zhedong Zheng](http://zdzheng.xyz/)
 
 This is a [University of Technology Sydney](https://www.uts.edu.au) computer vision practical, authored by Zhedong Zheng.
@@ -8,9 +10,14 @@ The practical explores the basis of learning pedestrian features. In this practi
 
 Person re-ID can be viewed as an image retrieval problem. Given one query image in Camera **A**, we need to find the images of the same person in other Cameras. The key of the person re-ID is to find a discriminative representation of the person. Many recent works apply deeply learned models to extract visual features, and achieve the state-of-the-art performance.
 
+We could use this tech to help people. Check the great video by Nvidia. (https://youtu.be/GiZ7kyrwZGQ?t=60)
+
+## Keywords
+Person re-identification, 行人重识别, 人の再識別, 보행자 재 식별, Réidentification des piétons, Ri-identificazione pedonale, Fußgänger-Neuidentifizierung, إعادة تحديد المشاة, Re-identificación de peatones
+
 ## Prerequisites
 - Python 3.6
-- GPU Memory >= 6G
+- GPU Memory >= 4G
 - Numpy
 - Pytorch 0.3+ (http://pytorch.org/)
 - Torchvision from the source
@@ -315,7 +322,7 @@ except RuntimeError:
 
 Let's try another dataset called DukeMTMC-reID, which is collected at Duke University in winter.
 
-You may download the dataset at [Here](http://vision.cs.duke.edu/DukeMTMC/data/misc/DukeMTMC-reID.zip). Try it by yourself.
+You may download the dataset at [Here](http://vision.cs.duke.edu/DukeMTMC/data/misc/DukeMTMC-reID.zip) [GoogleDriver](https://drive.google.com/open?id=1jjE85dRCMOgRtvJ5RQV9-Afs-2_5dY3O) or ([BaiduYun](https://pan.baidu.com/s/1jS0XM7Var5nQGcbf9xUztw) password: bhbh). Try it by yourself.
 
 The dataset is quite similar to Market-1501. You may also check with the state-of-the-art results at [Here](https://github.com/layumi/DukeMTMC-reID_evaluation/tree/master/State-of-the-art). 
 
@@ -337,10 +344,18 @@ I write the code in a similar manner, so let's find what I changed.
 ![](https://github.com/layumi/Image-Text-Embedding/blob/master/CUHK-show.jpg)
 
 - Could we use other losses (i.e. contrastive loss) to further improve the performance? Check [this paper](https://arxiv.org/abs/1611.05666). 
+![](https://github.com/layumi/2016_person_re-ID/raw/master/paper.jpg)
 
-- Person-reID dataset is not large enough to train a deep-learned network? You may check [this paper](https://arxiv.org/abs/1701.07717) and try some data augmentation method like [random erasing](https://arxiv.org/abs/1708.04896).
+- Person-reID dataset is not large enough to train a deep-learned network? You may check [this paper](https://arxiv.org/abs/1701.07717) (use GAN to generate more samples) and try some data augmentation method like [random erasing](https://arxiv.org/abs/1708.04896).
+
+![](https://github.com/layumi/Person-reID_GAN/raw/master/fig0.jpg)
 
 - Pedestrian detection is bad? Try [Open Pose](https://github.com/CMU-Perceptual-Computing-Lab/openpose) and [Spatial Transformer](https://github.com/layumi/Pedestrian_Alignment) to align the images.
+
+![](https://github.com/layumi/Pedestrian_Alignment/raw/master/fig2.jpg)
+
+## Answers to Quick Questions
+You may check https://github.com/layumi/Person_reID_baseline_pytorch/blob/master/tutorial/Answers_to_Quick_Questions.md
 
 ## Reference
 

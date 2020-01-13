@@ -7,9 +7,9 @@
 
 A tiny, friendly, strong baseline code for Person-reID (based on [pytorch](https://pytorch.org)).
 
-- **Strong.** It is consistent with the new baseline result in several top-conference works, e.g., [Beyond Part Models: Person Retrieval with Refined Part Pooling(ECCV18)](https://arxiv.org/abs/1711.09349) and [Camera Style Adaptation for Person Re-identification(CVPR18)](https://arxiv.org/abs/1711.10295). We arrived Rank@1=88.24%, mAP=70.68% only with softmax loss. 
+- **Strong.** It is consistent with the new baseline result in several top-conference works, e.g., [Joint Discriminative and Generative Learning for Person Re-identification(CVPR19)](https://arxiv.org/abs/1904.07223), [Beyond Part Models: Person Retrieval with Refined Part Pooling(ECCV18)](https://arxiv.org/abs/1711.09349), [Camera Style Adaptation for Person Re-identification(CVPR18)](https://arxiv.org/abs/1711.10295). We arrived Rank@1=88.24%, mAP=70.68% only with softmax loss. 
 
-- **Small.** With fp16, our baseline could be trained with only 2GB GPU memory.
+- **Small.** With fp16 (supported by Nvidia apex), our baseline could be trained with only 2GB GPU memory.
 
 - **Friendly.** You may use the off-the-shelf options to apply many state-of-the-art tricks in one line.
 Besides, if you are new to person re-ID, you may check out our **[Tutorial](https://github.com/layumi/Person_reID_baseline_pytorch/tree/master/tutorial)** first (8 min read) :+1: .
@@ -26,6 +26,7 @@ Besides, if you are new to person re-ID, you may check out our **[Tutorial](http
     * [Train](#train)
     * [Test](#test)
     * [Evaluation](#evaluation)
+* [Tips for training with other datasets](#tips)
 * [Citation](#citation)
 * [Related Repos](#related-repos)
 
@@ -39,6 +40,8 @@ Now we have supported:
 - ResNet/DenseNet
 - Visualize Training Curves
 - Visualize Ranking Result
+- [Visualize Heatmap](https://github.com/layumi/Person_reID_baseline_pytorch/blob/dev/visual_heatmap.py)
+- Linear Warm-up 
 
 Here we provide hyperparameters and architectures, that were used to generate the result. 
 Some of them (i.e. learning rate) are far from optimal. Do not hesitate to change them and see the effect. 
@@ -48,6 +51,14 @@ You may refer to [Here](https://github.com/layumi/Person_reID_baseline_matconvne
 Different framework need to be tuned in a different way.
 
 ## Some News
+**07 July 2019:** I added some new functions, such as `--resume`, auto-augmentation policy, acos loss, into [developing thread](https://github.com/layumi/Person_reID_baseline_pytorch/tree/dev) and rewrite the `save` and `load` functions. I haven't tested the functions throughly. Some new functions are worthy of having a try. If you are first to this repo, I suggest you stay with the master thread.
+
+**01 July 2019:** [My CVPR19 Paper](https://arxiv.org/abs/1904.07223) is online. It is based on this baseline repo as teacher model to provide pseudo label for the generated images to train a better student model. You are welcomed to check out the opensource code at [here](https://github.com/NVlabs/DG-Net).
+
+**03 Jun 2019:** Testing with multiple-scale inputs is added. You can use `--ms 1,0.9` when extracting the feature. It could slightly improve the final result.
+
+**20 May 2019:** Linear Warm Up is added. You also can set warm-up the first K epoch by `--warm_epoch K`. If K <=0, there will be no warm-up.
+
 **What's new:** FP16 has been added. It can be used by simply added `--fp16`. You need to install [apex](https://github.com/NVIDIA/apex) and update your pytorch to 1.0. 
 
 Float16 could save about 50% GPU memory usage without accuracy drop. **Our baseline could be trained with only 2GB GPU memory.** 
@@ -90,14 +101,15 @@ python test.py --PCB --name PCB-64
 
 ## Trained Model
 I re-trained several models, and the results may be different with the original one. Just for a quick reference, you may directly use these models. 
-The download link is [Here](https://drive.google.com/open?id=1EaRYVmfeIflibfNAXeDwXY0UyOlZ9otw).
+The download link is [Here](https://drive.google.com/open?id=1XVEYb0TN2SbBYOqf8SzazfYZlpH9CxyE).
 
 |Methods | Rank@1 | mAP| Reference|
 | -------- | ----- | ---- | ---- |
-| [ResNet-50] | 88.84% | 71.49% |  `python train.py --train_all` |
-| [DenseNet-121] | 90.11% | 73.51% | `python train.py --name ft_net_dense --use_dense --train_all` |
+| [ResNet-50] | 88.84% | 71.59% |  `python train.py --train_all` |
+| [DenseNet-121] | 90.17% | 74.02% | `python train.py --name ft_net_dense --use_dense --train_all` |
 | [PCB] | 92.64% | 77.47% | `python train.py --name PCB --PCB --train_all --lr 0.02` |
-| [ResNet-50 (fp16)] | 88.27% | 71.20% | `python train.py --name fp16 --fp16 --train_all` |
+| [ResNet-50 (fp16)] | 88.03% | 71.40% | `python train.py --name fp16 --fp16 --train_all` |
+| [ResNet-50 (all tricks)] | 91.83% | 78.32% | `python train.py --warm_epoch 5 --stride 1 --erasing_p 0.5 --batchsize 8 --lr 0.02 --name warm5_s1_b8_lr2_p0.5` |
 
 ### Model Structure
 You may learn more from `model.py`. 
@@ -110,6 +122,7 @@ We add one linear layer(bottleneck), one batchnorm layer and relu.
 - Numpy
 - Pytorch 0.3+
 - [Optional] apex (for float16) 
+- [Optional] [pretrainedmodels](https://github.com/Cadene/pretrained-models.pytorch)
 
 **(Some reports found that updating numpy can arrive the right accuracy. If you only get 50~80 Top1 Accuracy, just try it.)**
 We have successfully run the code based on numpy 1.12.1 and 1.13.1 .
@@ -134,7 +147,7 @@ Because pytorch and torchvision are ongoing projects.
 Here we noted that our code is tested based on Pytorch 0.3.0/0.4.0/0.5.0/1.0.0 and Torchvision 0.2.0/0.2.1 .
 
 ### Dataset & Preparation
-Download [Market1501 Dataset](http://www.liangzheng.org/Project/project_reid.html)
+Download [Market1501 Dataset](http://www.liangzheng.com.cn/Project/project_reid.html) [[Google]](https://drive.google.com/file/d/0B8-rUzbwVRk0c054eEozWG9COHM/view) [[Baidu]](https://pan.baidu.com/s/1ntIi2Op)
 
 Preparation: Put the images with the same id in one folder. You may use 
 ```bash
@@ -200,9 +213,27 @@ python evaluate_rerank.py
 
 It will output Rank@1, Rank@5, Rank@10 and mAP results.
 
+### Tips
+Notes the format of the camera id and the number of cameras.
+
+For some dataset, e.g., MSMT17, there are more than 10 cameras. You need to modify the `prepare.py` and `test.py` to read the double-digit camera ID.
+
+For some vehicle re-ID datasets. e.g. VeRi, you also need to modify the `prepare.py` and `test.py`.  It has different naming rules.
+https://github.com/layumi/Person_reID_baseline_pytorch/issues/107 (Sorry. It is in Chinese)
+
 
 ## Citation
-As far as I know, the following papers may be the first two to use the bottleneck baseline. You may cite them in your paper.
+The following paper uses and reports the result of the baseline model. You may cite it in your paper.
+```
+@article{zheng2019joint,
+  title={Joint discriminative and generative learning for person re-identification},
+  author={Zheng, Zhedong and Yang, Xiaodong and Yu, Zhiding and Zheng, Liang and Yang, Yi and Kautz, Jan},
+  journal={IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year={2019}
+}
+```
+
+The following papers may be the first two to use the bottleneck baseline. You may cite them in your paper.
 ```
 @article{DBLP:journals/corr/SunZDW17,
   author    = {Yifan Sun and
@@ -222,8 +253,23 @@ As far as I know, the following papers may be the first two to use the bottlenec
 }
 ```
 
+Basic Model
+```
+@article{zheng2018discriminatively,
+  title={A discriminatively learned CNN embedding for person reidentification},
+  author={Zheng, Zhedong and Zheng, Liang and Yang, Yi},
+  journal={ACM Transactions on Multimedia Computing, Communications, and Applications (TOMM)},
+  volume={14},
+  number={1},
+  pages={13},
+  year={2018},
+  publisher={ACM}
+}
+```
+
 ## Related Repos
-1. [Pedestrian Alignment Network](https://github.com/layumi/Pedestrian_Alignment)
-2. [2stream Person re-ID](https://github.com/layumi/2016_person_re-ID)
-3. [Pedestrian GAN](https://github.com/layumi/Person-reID_GAN)
-4. [Language Person Search](https://github.com/layumi/Image-Text-Embedding)
+1. [Pedestrian Alignment Network](https://github.com/layumi/Pedestrian_Alignment) ![GitHub stars](https://img.shields.io/github/stars/layumi/Pedestrian_Alignment.svg?style=flat&label=Star)
+2. [2stream Person re-ID](https://github.com/layumi/2016_person_re-ID) ![GitHub stars](https://img.shields.io/github/stars/layumi/2016_person_re-ID.svg?style=flat&label=Star)
+3. [Pedestrian GAN](https://github.com/layumi/Person-reID_GAN) ![GitHub stars](https://img.shields.io/github/stars/layumi/Person-reID_GAN.svg?style=flat&label=Star)
+4. [Language Person Search](https://github.com/layumi/Image-Text-Embedding) ![GitHub stars](https://img.shields.io/github/stars/layumi/Image-Text-Embedding.svg?style=flat&label=Star)
+5. [DG-Net](https://github.com/NVlabs/DG-Net) ![GitHub stars](https://img.shields.io/github/stars/NVlabs/DG-Net.svg?style=flat&label=Star)

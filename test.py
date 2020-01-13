@@ -16,7 +16,8 @@ import time
 import os
 import scipy.io
 import yaml
-from model import ft_net, ft_net_dense, PCB, PCB_test
+import math
+from model import ft_net, ft_net_dense, ft_net_NAS, PCB, PCB_test
 
 #fp16
 try:
@@ -37,6 +38,7 @@ parser.add_argument('--use_dense', action='store_true', help='use densenet121' )
 parser.add_argument('--PCB', action='store_true', help='use PCB' )
 parser.add_argument('--multi', action='store_true', help='use multiple query' )
 parser.add_argument('--fp16', action='store_true', help='use fp16.' )
+parser.add_argument('--ms',default='1', type=str,help='multiple_scale: e.g. 1 1,1.1  1,1.1,1.2')
 
 opt = parser.parse_args()
 ###load config###
@@ -47,6 +49,13 @@ with open(config_path, 'r') as stream:
 opt.fp16 = config['fp16'] 
 opt.PCB = config['PCB']
 opt.use_dense = config['use_dense']
+opt.use_NAS = config['use_NAS']
+opt.stride = config['stride']
+
+if 'nclasses' in config: # tp compatible with old config files
+    opt.nclasses = config['nclasses']
+else: 
+    opt.nclasses = 751 
 
 str_ids = opt.gpu_ids.split(',')
 #which_epoch = opt.which_epoch
@@ -58,6 +67,13 @@ for str_id in str_ids:
     id = int(str_id)
     if id >=0:
         gpu_ids.append(id)
+
+print('We use the scale: %s'%opt.ms)
+str_ms = opt.ms.split(',')
+ms = []
+for s in str_ms:
+    s_f = float(s)
+    ms.append(math.sqrt(s_f))
 
 # set gpu ids
 if len(gpu_ids)>0:
@@ -137,21 +153,20 @@ def extract_feature(model,dataloaders):
         n, c, h, w = img.size()
         count += n
         print(count)
-        if opt.use_dense:
-            ff = torch.FloatTensor(n,1024).zero_()
-        else:
-            ff = torch.FloatTensor(n,2048).zero_()
+        ff = torch.FloatTensor(n,512).zero_().cuda()
         if opt.PCB:
-            ff = torch.FloatTensor(n,2048,6).zero_() # we have six parts
+            ff = torch.FloatTensor(n,2048,6).zero_().cuda() # we have six parts
+
         for i in range(2):
             if(i==1):
                 img = fliplr(img)
             input_img = Variable(img.cuda())
-            if opt.fp16:
-                input_img = input_img.half()
-            outputs = model(input_img) 
-            f = outputs.data.cpu().float()
-            ff = ff+f
+            for scale in ms:
+                if scale != 1:
+                    # bicubic is only  available in pytorch>= 1.1
+                    input_img = nn.functional.interpolate(input_img, scale_factor=scale, mode='bicubic', align_corners=False)
+                outputs = model(input_img) 
+                ff += outputs
         # norm feature
         if opt.PCB:
             # feature size (n,2048,6)
@@ -164,7 +179,7 @@ def extract_feature(model,dataloaders):
             fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
             ff = ff.div(fnorm.expand_as(ff))
 
-        features = torch.cat((features,ff), 0)
+        features = torch.cat((features,ff.data.cpu()), 0)
     return features
 
 def get_id(img_path):
@@ -196,27 +211,32 @@ if opt.multi:
 # Load Collected data Trained model
 print('-------test-----------')
 if opt.use_dense:
-    model_structure = ft_net_dense(751)
+    model_structure = ft_net_dense(opt.nclasses)
+elif opt.use_NAS:
+    model_structure = ft_net_NAS(opt.nclasses)
 else:
-    model_structure = ft_net(751)
+    model_structure = ft_net(opt.nclasses, stride = opt.stride)
 
 if opt.PCB:
-    model_structure = PCB(751)
+    model_structure = PCB(opt.nclasses)
 
-if opt.fp16:
-    model_structure = network_to_half(model_structure)
+#if opt.fp16:
+#    model_structure = network_to_half(model_structure)
 
 model = load_network(model_structure)
 
 # Remove the final fc layer and classifier layer
 if opt.PCB:
-    model = PCB_test(model)
-elif opt.fp16:
-    model[1].model.fc = nn.Sequential()
-    model[1].classifier = nn.Sequential()
+    #if opt.fp16:
+    #    model = PCB_test(model[1])
+    #else:
+        model = PCB_test(model)
 else:
-    model.model.fc = nn.Sequential()
-    model.classifier = nn.Sequential()
+    #if opt.fp16:
+        #model[1].model.fc = nn.Sequential()
+        #model[1].classifier = nn.Sequential()
+    #else:
+        model.classifier.classifier = nn.Sequential()
 
 # Change to test mode
 model = model.eval()
@@ -233,6 +253,11 @@ with torch.no_grad():
 # Save to Matlab for check
 result = {'gallery_f':gallery_feature.numpy(),'gallery_label':gallery_label,'gallery_cam':gallery_cam,'query_f':query_feature.numpy(),'query_label':query_label,'query_cam':query_cam}
 scipy.io.savemat('pytorch_result.mat',result)
+
+print(opt.name)
+result = './model/%s/result.txt'%opt.name
+os.system('python evaluate_gpu.py | tee -a %s'%result)
+
 if opt.multi:
     result = {'mquery_f':mquery_feature.numpy(),'mquery_label':mquery_label,'mquery_cam':mquery_cam}
     scipy.io.savemat('multi_query.mat',result)
